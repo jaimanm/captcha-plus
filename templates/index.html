@@ -3,19 +3,120 @@
 <head>
     <title>Live Stream</title>
     <style>
-        #video-stream {
-            /* Adjust these values to suit your needs */
-            width: 1600px;
-            height: 900px;
-            /* Optional: add a border and center the video stream */
-            border: 1px solid black;
-            display: block;
-            margin: 0 auto;
-        }
+        
     </style>
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Here's my camera live stream!!!!</h1>
-    <img id="video-stream" src="{{ url_for('video_stream') }}" />
+<body class="bg-gray-100">
+
+    <div id="human-auth" class="text-center mt-10">
+        <h1 class="text-6xl font-bold">Human Authentication</h1>
+        <h2 class="text-4xl font-bold">Show peace sign, number 3, and then thumbs up:</h2>
+        <h2 class="text-4xl italic" id="message"></h2>
+        <h2 class="text-4xl font-bold" id="status1"></h2>
+        <h2 class="text-4xl font-bold" id="status2"></h2>
+        <h2 class="text-4xl font-bold" id="status3"></h2>
+        <h2 class="text-4xl font-bold" id="message2"></h2>
+    </div>
+
+    <div id="password" style="display: none;" class="m-6">
+        <h1 class="text-6xl font-bold text-blue-700" id="title">Authentication Complete!</h1>
+        <h2 class="text-4xl font-bold" id="subtitle">Enter The Correct Password:</h2>
+        <h2 class="text-4xl"><span class="font-bold">Hint: </span> show binary numbers <span class="font-bold">3, 17, 2</span> in order</h2>
+        <h2 class="text-4xl italic fill" id="message3"></h2>
+        <h2 class="text-4xl font-bold">Password entered:</h2>
+        <h2 class="text-6xl" id="pass">&nbsp;</h2>
+        <button type="button" onclick="handleLockIn()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Lock In Number</button>
+        <button type="button" onclick="handleReset()" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Reset Input</button>
+    </div>
+    <br><br>
+    <img id="video-stream" src="{{ url_for('video_stream') }}" class="mx-auto w-3/4 h-auto border-2 border-black block" style="max-width: 100%; height: auto;">
 </body>
 </html>
+
+<script>
+    var source = new EventSource("/stream");
+
+    var textBox = document.getElementById("message");
+    var textBox2 = document.getElementById("message2");
+
+    var message = "";
+    var auth = [false, false, false]
+    var authenticating = true;
+    var done = false;
+    var passEntered = [];
+    var title = document.getElementById("title");
+    var subtitle = document.getElementById("subtitle");
+    source.onmessage = function(event) {
+        // check if any of the auths are false
+        if (auth[0] && auth[1] && auth[2]) {
+            authenticating = false;
+        }
+        // Update the page with the new message
+        message = event.data;
+        if (message == "-1") message = "No hand found"
+        document.getElementById('message').textContent = "Binary Number: " + message;
+        document.getElementById('message3').textContent = "Binary Number: " + message;
+        if (message == "6" || message == "7") {
+            if (authenticating) auth[0] = true;
+        } else if (message == "7" || message == "14" || message == "28") {
+            if (authenticating) auth[1] = true;
+        }
+        else if (message == "1") {
+            if (authenticating) auth[2] = true;
+        }
+    };    
+    
+    // Update the authStatus element with the current auth values
+    function updateAuthStatus() {
+        for (var i = 1; i <= 3; i++) {
+            let text = "";
+            if (i==1) text = "Peace Sign: ";
+            else if (i==2) text = "Number 3: ";
+            else text = "Thumbs Up: ";
+            if (auth[i-1]) text += "DONE";
+            else text += "INCOMPLETE";
+            // console.log(text);
+            document.getElementById(`status${i}`).textContent = text;
+        }
+    }
+    
+    intervalId = setInterval(function() {
+        updateAuthStatus();
+
+        // check if all 3 auths are true
+        if (!authenticating) {
+            textBox2.textContent = "Authenticated!";
+            document.getElementById('human-auth').style.display = "none";
+            document.getElementById('password').style.display = "block";
+
+            
+        }
+        if (passEntered.join(",") === ["3", "17", "2"].join(",")) {
+            title.textContent = "Login Complete!";
+            subtitle.textContent = "";
+            done = true;
+            handleDone();
+            clearInterval(intervalId); // Add this line to stop the setInterval
+        }
+    }, 1);
+
+    function handleDone() {
+        if (done) {
+            alert("You have been authenticated as a human and logged in successfully!");
+            done = false;
+        }
+    }
+
+    function handleLockIn() {
+        passEntered.push(message);
+        document.getElementById('pass').textContent = passEntered.join(", ");
+        console.log(passEntered);
+    }
+
+    function handleReset() {
+        passEntered = [];
+        document.getElementById('pass').textContent = "";
+    }
+</script>
